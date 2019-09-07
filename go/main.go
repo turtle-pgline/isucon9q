@@ -581,13 +581,28 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	userIds := []int64{}
+	for _, item := range items {
+		userIds = append(userIds, item.SellerID)
+	}
+
+	sellers, _ := getUserSimpleByIDs(dbx, userIds)
+
 	itemSimples := []ItemSimple{}
 	for _, item := range items {
-		seller, err := getUserSimpleByID(dbx, item.SellerID)
-		if err != nil {
+		var seller UserSimple
+		for _, s := range sellers {
+			if s.ID == item.SellerID {
+				seller = s
+				break
+			}
+		}
+
+		if seller.ID == 0 {
 			outputErrorMsg(w, http.StatusNotFound, "seller not found")
 			return
 		}
+
 		category, err := getCategoryByID(dbx, item.CategoryID)
 		if err != nil {
 			outputErrorMsg(w, http.StatusNotFound, "category not found")
@@ -947,14 +962,29 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	userIds := []int64{}
+	for _, item := range items {
+		userIds = append(userIds, item.SellerID)
+	}
+
+	sellers, _ := getUserSimpleByIDs(tx, userIds)
+
 	itemDetails := []ItemDetail{}
 	for _, item := range items {
-		seller, err := getUserSimpleByID(tx, item.SellerID)
-		if err != nil {
+		var seller UserSimple
+		for _, s := range sellers {
+			if s.ID == item.SellerID {
+				seller = s
+				break
+			}
+		}
+
+		if seller.ID == 0 {
 			outputErrorMsg(w, http.StatusNotFound, "seller not found")
 			tx.Rollback()
 			return
 		}
+
 		category, err := getCategoryByID(tx, item.CategoryID)
 		if err != nil {
 			outputErrorMsg(w, http.StatusNotFound, "category not found")
