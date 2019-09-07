@@ -443,6 +443,29 @@ func getCategoryByID(q sqlx.Queryer, categoryID int) (category Category, err err
 	return category, err
 }
 
+func getCategoryByIDs(q sqlx.Queryer, categoryIDs []int) ([]Category, error) {
+	inQuery, inArgs, _ := sqlx.In("SELECT * FROM `categories` WHERE `id` in (?)", categoryIDs)
+
+	categories := []Category{}
+	err := sqlx.Select(q, &categories, inQuery, inArgs...)
+	log.Println(categories, err)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, category := range categories {
+		if category.ParentID != 0 {
+			parentCategory, err := getCategoryByID(q, category.ParentID) // TODO fix
+			if err != nil {
+				return nil, err
+			}
+			categories[i].ParentCategoryName = parentCategory.CategoryName
+		}
+	}
+
+	return categories, nil
+}
+
 func getConfigByName(name string) (string, error) {
 	config := Config{}
 	err := dbx.Get(&config, "SELECT * FROM `configs` WHERE `name` = ?", name)
@@ -582,11 +605,14 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userIds := []int64{}
+	cIds := []int{}
 	for _, item := range items {
 		userIds = append(userIds, item.SellerID)
+		cIds = append(cIds, item.CategoryID)
 	}
 
 	sellers, _ := getUserSimpleByIDs(dbx, userIds)
+	categories, _ := getCategoryByIDs(dbx, cIds)
 
 	itemSimples := []ItemSimple{}
 	for _, item := range items {
@@ -603,11 +629,19 @@ func getNewItems(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		category, err := getCategoryByID(dbx, item.CategoryID)
-		if err != nil {
+		var category Category
+		for _, c := range categories {
+			if c.ID == item.CategoryID {
+				category = c
+				break
+			}
+		}
+
+		if category.ID == 0 {
 			outputErrorMsg(w, http.StatusNotFound, "category not found")
 			return
 		}
+
 		itemSimples = append(itemSimples, ItemSimple{
 			ID:         item.ID,
 			SellerID:   item.SellerID,
@@ -721,11 +755,14 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userIds := []int64{}
+	cIds := []int{}
 	for _, item := range items {
 		userIds = append(userIds, item.SellerID)
+		cIds = append(cIds, item.CategoryID)
 	}
 
 	sellers, _ := getUserSimpleByIDs(dbx, userIds)
+	categories, _ := getCategoryByIDs(dbx, cIds)
 
 	itemSimples := []ItemSimple{}
 	for _, item := range items {
@@ -742,8 +779,15 @@ func getNewCategoryItems(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		category, err := getCategoryByID(dbx, item.CategoryID)
-		if err != nil {
+		var category Category
+		for _, c := range categories {
+			if c.ID == item.CategoryID {
+				category = c
+				break
+			}
+		}
+
+		if category.ID == 0 {
 			outputErrorMsg(w, http.StatusNotFound, "category not found")
 			return
 		}
