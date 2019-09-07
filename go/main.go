@@ -1013,7 +1013,7 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 
 	buyerUserIds := []int64{}
 	for _, item := range items {
-		buyerUserIds = append(userIds, item.BuyerID)
+		buyerUserIds = append(buyerUserIds, item.BuyerID)
 	}
 
 	sellers, _ := getUserSimpleByIDs(tx, userIds)
