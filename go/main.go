@@ -1011,7 +1011,13 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		userIds = append(userIds, item.SellerID)
 	}
 
+	buyerUserIds := []int64{}
+	for _, item := range items {
+		buyerUserIds = append(buyerUserIds, item.BuyerID)
+	}
+
 	sellers, _ := getUserSimpleByIDs(tx, userIds)
+	buyers, _ := getUserSimpleByIDs(tx, buyerUserIds)
 
 	itemDetails := []ItemDetail{}
 	for _, item := range items {
@@ -1056,8 +1062,15 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if item.BuyerID != 0 {
-			buyer, err := getUserSimpleByID(tx, item.BuyerID)
-			if err != nil {
+			var buyer UserSimple
+			for _, b := range buyers {
+				if b.ID == item.BuyerID {
+					buyer = b
+					break
+				}
+			}
+
+			if buyer.ID == 0 {
 				outputErrorMsg(w, http.StatusNotFound, "buyer not found")
 				tx.Rollback()
 				return
