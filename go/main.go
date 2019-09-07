@@ -448,7 +448,6 @@ func getCategoryByIDs(q sqlx.Queryer, categoryIDs []int) ([]Category, error) {
 
 	categories := []Category{}
 	err := sqlx.Select(q, &categories, inQuery, inArgs...)
-	log.Println(categories, err)
 	if err != nil {
 		return nil, err
 	}
@@ -1026,8 +1025,14 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		cIds = append(cIds, item.CategoryID)
 	}
 
+	buyerUserIds := []int64{}
+	for _, item := range items {
+		buyerUserIds = append(buyerUserIds, item.BuyerID)
+	}
+
 	sellers, _ := getUserSimpleByIDs(tx, userIds)
 	categories, _ := getCategoryByIDs(tx, cIds)
+	buyers, _ := getUserSimpleByIDs(tx, buyerUserIds)
 
 	itemDetails := []ItemDetail{}
 	for _, item := range items {
@@ -1079,8 +1084,15 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if item.BuyerID != 0 {
-			buyer, err := getUserSimpleByID(tx, item.BuyerID)
-			if err != nil {
+			var buyer UserSimple
+			for _, b := range buyers {
+				if b.ID == item.BuyerID {
+					buyer = b
+					break
+				}
+			}
+
+			if buyer.ID == 0 {
 				outputErrorMsg(w, http.StatusNotFound, "buyer not found")
 				tx.Rollback()
 				return
