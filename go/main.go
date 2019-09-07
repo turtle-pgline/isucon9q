@@ -477,6 +477,18 @@ func GetTransactionEvidencesByItemIds(q sqlx.Queryer, itemIds []int64) []Transac
 	return evidences
 }
 
+func getShippingsByEvidenceIds(q sqlx.Queryer, evidenceIds []int64) []Shipping {
+	inQuery, inArgs, _ := sqlx.In("SELECT * FROM `shippings` WHERE `transaction_evidence_id` in (?)", evidenceIds)
+
+	shippings := []Shipping{}
+	err := sqlx.Select(q, &shippings, inQuery, inArgs...)
+	if err != nil {
+		return nil
+	}
+
+	return shippings
+}
+
 func getConfigByName(name string) (string, error) {
 	config := Config{}
 	err := dbx.Get(&config, "SELECT * FROM `configs` WHERE `name` = ?", name)
@@ -1049,6 +1061,15 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 	buyers, _ := getUserSimpleByIDs(tx, buyerUserIds)
 	evidences := GetTransactionEvidencesByItemIds(tx, itemIds)
 
+	evidenceIds := []int64{}
+	for _, e := range evidences {
+		if e.ID != 0 {
+			evidenceIds = append(evidenceIds, e.ID)
+		}
+	}
+
+	shippings := getShippingsByEvidenceIds(tx, evidenceIds)
+
 	itemDetails := []ItemDetail{}
 	for _, item := range items {
 		var seller UserSimple
@@ -1135,19 +1156,25 @@ func getTransactions(w http.ResponseWriter, r *http.Request) {
 		// }
 
 		if transactionEvidence.ID > 0 {
-			shipping := Shipping{}
-			err = tx.Get(&shipping, "SELECT * FROM `shippings` WHERE `transaction_evidence_id` = ?", transactionEvidence.ID)
-			if err == sql.ErrNoRows {
+			var shipping Shipping
+			for _, s := range shippings {
+				if transactionEvidence.ID == s.TransactionEvidenceID {
+					shipping = s
+					break
+				}
+			}
+
+			if shipping.TransactionEvidenceID == 0 {
 				outputErrorMsg(w, http.StatusNotFound, "shipping not found")
 				tx.Rollback()
 				return
 			}
-			if err != nil {
-				log.Print(err)
-				outputErrorMsg(w, http.StatusInternalServerError, "db error")
-				tx.Rollback()
-				return
-			}
+			// if err != nil {
+			// 	log.Print(err)
+			// 	outputErrorMsg(w, http.StatusInternalServerError, "db error")
+			// 	tx.Rollback()
+			// 	return
+			// }
 			ssr, err := APIShipmentStatus(getShipmentServiceURL(), &APIShipmentStatusReq{
 				ReserveID: shipping.ReserveID,
 			})
