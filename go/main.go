@@ -407,6 +407,18 @@ func getUserSimpleByID(q sqlx.Queryer, userID int64) (userSimple UserSimple, err
 	return userSimple, err
 }
 
+func getUserSimpleByIDs(q sqlx.Queryer, userID int64) (userSimple UserSimple, err error) {
+	user := User{}
+	err = sqlx.Get(q, &user, "SELECT * FROM `users` WHERE `id` = ?", userID)
+	if err != nil {
+		return userSimple, err
+	}
+	userSimple.ID = user.ID
+	userSimple.AccountName = user.AccountName
+	userSimple.NumSellItems = user.NumSellItems
+	return userSimple, err
+}
+
 func getCategoryByID(q sqlx.Queryer, categoryID int) (category Category, err error) {
 	err = sqlx.Get(q, &category, "SELECT * FROM `categories` WHERE `id` = ?", categoryID)
 	if category.ParentID != 0 {
@@ -461,7 +473,7 @@ func postInitialize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cmd := exec.Command("../sql/init.sh")
+	cmd := exec.Command("../scripts/init.sh")
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stderr
 	cmd.Run()
