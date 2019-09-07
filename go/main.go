@@ -432,41 +432,98 @@ func getUserSimpleByIDs(q sqlx.Queryer, userIDs []int64) ([]UserSimple, error) {
 	return result, nil
 }
 
-func getCategoryByID(q sqlx.Queryer, categoryID int) (category Category, err error) {
-	c, b := CategoryCache.Get(categoryID)
-	if b {
-		return c, nil
-	}
+var Categories = []Category{
+	Category{1, 0, "ソファー", ""},
+	Category{2, 1, "一人掛けソファー", "ソファー"},
+	Category{3, 1, "二人掛けソファー", "ソファー"},
+	Category{4, 1, "コーナーソファー", "ソファー"},
+	Category{5, 1, "二段ソファー", "ソファー"},
+	Category{6, 1, "ソファーベッド", "ソファー"},
+	Category{10, 0, "家庭用チェア", ""},
+	Category{11, 10, "スツール", "家庭用チェア"},
+	Category{12, 10, "クッションスツール", "家庭用チェア"},
+	Category{13, 10, "ダイニングチェア", "家庭用チェア"},
+	Category{14, 10, "リビングチェア", "家庭用チェア"},
+	Category{15, 10, "カウンターチェア", "家庭用チェア"},
+	Category{20, 0, "キッズチェア", ""},
+	Category{21, 20, "学習チェア", "キッズチェア"},
+	Category{22, 20, "ベビーソファ", "キッズチェア"},
+	Category{23, 20, "キッズハイチェア", "キッズチェア"},
+	Category{24, 20, "テーブルチェア", "キッズチェア"},
+	Category{30, 0, "オフィスチェア", ""},
+	Category{31, 30, "デスクチェア", "オフィスチェア"},
+	Category{32, 30, "ビジネスチェア", "オフィスチェア"},
+	Category{33, 30, "回転チェア", "オフィスチェア"},
+	Category{34, 30, "リクライニングチェア", "オフィスチェア"},
+	Category{35, 30, "投擲用椅子", "オフィスチェア"},
+	Category{40, 0, "折りたたみ椅子", ""},
+	Category{41, 40, "パイプ椅子", "折りたたみ椅子"},
+	Category{42, 40, "木製折りたたみ椅子", "折りたたみ椅子"},
+	Category{43, 40, "キッチンチェア", "折りたたみ椅子"},
+	Category{44, 40, "アウトドアチェア", "折りたたみ椅子"},
+	Category{45, 40, "作業椅子", "折りたたみ椅子"},
+	Category{50, 0, "ベンチ", ""},
+	Category{51, 50, "一人掛けベンチ", "ベンチ"},
+	Category{52, 50, "二人掛けベンチ", "ベンチ"},
+	Category{53, 50, "アウトドア用ベンチ", "ベンチ"},
+	Category{54, 50, "収納付きベンチ", "ベンチ"},
+	Category{55, 50, "背もたれ付きベンチ", "ベンチ"},
+	Category{56, 50, "ベンチマーク", "ベンチ"},
+	Category{60, 0, "座椅子", ""},
+	Category{61, 60, "和風座椅子", "座椅子"},
+	Category{62, 60, "高座椅子", "座椅子"},
+	Category{63, 60, "ゲーミング座椅子", "座椅子"},
+	Category{64, 60, "ロッキングチェア", "座椅子"},
+	Category{65, 60, "座布団", "座椅子"},
+	Category{66, 60, "空気椅子", "座椅子"},
+}
 
-	err = sqlx.Get(q, &category, "SELECT * FROM `categories` WHERE `id` = ?", categoryID)
-	if category.ParentID != 0 {
-		parentCategory, err := getCategoryByID(q, category.ParentID)
-		if err != nil {
-			return category, err
+func getCategoryByID(q sqlx.Queryer, categoryID int) (category *Category, err error) {
+	// c, b := CategoryCache.Get(categoryID)
+	// if b {
+	// 	return c, nil
+	// }
+
+	// err = sqlx.Get(q, &category, "SELECT * FROM `categories` WHERE `id` = ?", categoryID)
+	// if category.ParentID != 0 {
+	// 	parentCategory, err := getCategoryByID(q, category.ParentID)
+	// 	if err != nil {
+	// 		return category, err
+	// 	}
+	// 	category.ParentCategoryName = parentCategory.CategoryName
+	// }
+	// CategoryCache.Set(categoryID, category)
+	// return category, err
+	for _, c := range Categories {
+		if c.ID == categoryID {
+			return &c, nil
 		}
-		category.ParentCategoryName = parentCategory.CategoryName
 	}
-	CategoryCache.Set(categoryID, category)
-	return category, err
+	return nil, nil
 }
 
 func getCategoryByIDs(q sqlx.Queryer, categoryIDs []int) ([]Category, error) {
-	inQuery, inArgs, _ := sqlx.In("SELECT * FROM `categories` WHERE `id` in (?)", categoryIDs)
+	// inQuery, inArgs, _ := sqlx.In("SELECT * FROM `categories` WHERE `id` in (?)", categoryIDs)
 
 	categories := []Category{}
-	err := sqlx.Select(q, &categories, inQuery, inArgs...)
-	if err != nil {
-		return nil, err
-	}
+	// err := sqlx.Select(q, &categories, inQuery, inArgs...)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	for i, category := range categories {
-		if category.ParentID != 0 {
-			parentCategory, err := getCategoryByID(q, category.ParentID) // TODO fix
-			if err != nil {
-				return nil, err
-			}
-			categories[i].ParentCategoryName = parentCategory.CategoryName
-		}
+	// for i, category := range categories {
+	// 	if category.ParentID != 0 {
+	// 		parentCategory, err := getCategoryByID(q, category.ParentID) // TODO fix
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		categories[i].ParentCategoryName = parentCategory.CategoryName
+	// 	}
+	// }
+
+	for _, id := range categoryIDs {
+		c, _ := getCategoryByID(q, id)
+		categories = append(categories, *c)
 	}
 
 	return categories, nil
@@ -1291,7 +1348,7 @@ func getItem(w http.ResponseWriter, r *http.Request) {
 		// TransactionEvidenceID
 		// TransactionEvidenceStatus
 		// ShippingStatus
-		Category:  &category,
+		Category:  category,
 		CreatedAt: item.CreatedAt.Unix(),
 	}
 
