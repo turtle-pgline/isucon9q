@@ -433,6 +433,11 @@ func getUserSimpleByIDs(q sqlx.Queryer, userIDs []int64) ([]UserSimple, error) {
 }
 
 func getCategoryByID(q sqlx.Queryer, categoryID int) (category Category, err error) {
+	c, b := CategoryCache.Get(categoryID)
+	if b {
+		return c, nil
+	}
+
 	err = sqlx.Get(q, &category, "SELECT * FROM `categories` WHERE `id` = ?", categoryID)
 	if category.ParentID != 0 {
 		parentCategory, err := getCategoryByID(q, category.ParentID)
@@ -441,6 +446,7 @@ func getCategoryByID(q sqlx.Queryer, categoryID int) (category Category, err err
 		}
 		category.ParentCategoryName = parentCategory.CategoryName
 	}
+	CategoryCache.Set(categoryID, category)
 	return category, err
 }
 
@@ -2354,6 +2360,36 @@ func postBump(w http.ResponseWriter, r *http.Request) {
 		ItemUpdatedAt: targetItem.UpdatedAt.Unix(),
 	})
 }
+
+type cacheSlice struct {
+	// Setが多いならsync.Mutex
+	sync.RWMutex
+	Categorys map[int]Category
+}
+
+// Categoryのキャッシュ
+func NewCacheSlice() *cacheSlice {
+	m := make(map[int]Category)
+	c := &cacheSlice{
+		Categorys: m,
+	}
+	return c
+}
+
+func (c *cacheSlice) Set(key int, value Category) {
+	c.Lock()
+	c.Categorys[key] = value
+	c.Unlock()
+}
+
+func (c *cacheSlice) Get(key int) (Category, bool) {
+	c.RLock()
+	v, found := c.Categorys[key]
+	c.RUnlock()
+	return v, found
+}
+
+var CategoryCache = NewCacheSlice()
 
 func getSettings(w http.ResponseWriter, r *http.Request) {
 	csrfToken := getCSRFToken(r)
